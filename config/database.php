@@ -12,7 +12,19 @@ class Database
 
     private function __construct()
     {
-        $this->dbPath = __DIR__ . '/crm.db';
+        // Try app config dir first, fall back to writable temp dir on hosts
+        // that don't allow writing to the app directory
+        $appDir = __DIR__ . '/crm.db';
+        if (is_writable(__DIR__) || file_exists($appDir)) {
+            $this->dbPath = $appDir;
+        } else {
+            // Production: store in a persistent writable location outside webroot
+            $dataDir = sys_get_temp_dir() . '/obsiguard_crm';
+            if (!is_dir($dataDir)) {
+                mkdir($dataDir, 0755, true);
+            }
+            $this->dbPath = $dataDir . '/crm.db';
+        }
         $this->connect();
         $this->initializeDatabase();
     }
@@ -286,6 +298,18 @@ class Database
             $defaultMsg = $existing ? $existing['setting_value'] : 'Hello {name}, this is a message from our team.';
             $this->pdo->prepare("INSERT INTO whatsapp_templates (name, message, is_default) VALUES (?, ?, 1)")
                 ->execute(['Default Template', $defaultMsg]);
+        }
+
+        // Seed default admin account on first boot
+        $userCount = $this->pdo->query("SELECT COUNT(*) as count FROM users")->fetch();
+        if ($userCount['count'] == 0) {
+            $this->pdo->prepare(
+                "INSERT INTO users (name, email, password, role, is_active) VALUES (?, ?, ?, 'admin', 1)"
+            )->execute([
+                'Admin',
+                'admin@obsiguard.com',
+                password_hash('Admin@2026', PASSWORD_DEFAULT)
+            ]);
         }
     }
 
