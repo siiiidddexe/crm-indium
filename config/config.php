@@ -420,4 +420,110 @@ function getEmailTemplates()
 {
     return db()->fetchAll("SELECT * FROM email_templates WHERE is_active = 1 ORDER BY name");
 }
+
+// ─── Notification Helpers ─────────────────────────────────────────────────────
+
+/**
+ * Send an automated event notification if that event is enabled in settings.
+ * Events: new_leads, sync_complete
+ */
+function sendNotification(string $event, array $data = []): bool
+{
+    if (getSetting('nexomailer_enabled', '0') !== '1') return false;
+    if (getSetting('notif_' . $event, '0') !== '1') return false;
+    $to = trim(getSetting('notif_recipient_email', ''));
+    if (empty($to)) return false;
+
+    [$subject, $bodyHtml] = _buildNotifContent($event, $data);
+    if (empty($subject)) return false;
+
+    return sendNexoEmail($to, $subject, _notifWrap($subject, $bodyHtml));
+}
+
+/** Build subject + inner HTML for each event type */
+function _buildNotifContent(string $event, array $data): array
+{
+    $today   = date('d M Y');
+    $appName = APP_NAME;
+
+    switch ($event) {
+        case 'new_leads':
+            $count  = intval($data['count'] ?? 0);
+            $source = htmlspecialchars($data['source'] ?? 'Import');
+            $date   = htmlspecialchars($data['date'] ?? $today);
+            return [
+                "[$appName] {$count} New Lead(s) Imported — {$date}",
+                '<p style="font-size:15px;color:#374151;margin:0 0 8px">New contacts have been imported into the CRM.</p>' .
+                _notifTable([
+                    'Source'    => $source,
+                    'New Leads' => "<strong style='color:#16a34a'>{$count}</strong>",
+                    'Date'      => $date,
+                    'Time'      => date('h:i A'),
+                ]),
+            ];
+
+        case 'sync_complete':
+            $count   = intval($data['count'] ?? 0);
+            $plugin  = htmlspecialchars($data['plugin_name'] ?? 'Plugin');
+            $errors  = intval($data['errors'] ?? 0);
+            $errHtml = $errors ? "<strong style='color:#dc2626'>{$errors}</strong>" : '0';
+            return [
+                "[$appName] Sync Complete — {$count} lead(s) from {$plugin}",
+                '<p style="font-size:15px;color:#374151;margin:0 0 8px">A plugin sync has finished.</p>' .
+                _notifTable([
+                    'Plugin'    => $plugin,
+                    'New Leads' => "<strong style='color:#16a34a'>{$count}</strong>",
+                    'Errors'    => $errHtml,
+                    'Time'      => date('h:i A'),
+                ]),
+            ];
+
+        default:
+            return ['', ''];
+    }
+}
+
+/** Render a two-column key→value table for email bodies */
+function _notifTable(array $rows): string
+{
+    $html = "<table style='width:100%;border-collapse:collapse;font-size:14px;margin-top:16px'>";
+    $keys = array_keys($rows);
+    $last = end($keys);
+    foreach ($rows as $label => $value) {
+        $border = ($label === $last) ? '' : 'border-bottom:1px solid #f0f0f0;';
+        $html  .= "<tr>
+            <td style='padding:10px 0;color:#6b7280;{$border}'>{$label}</td>
+            <td style='padding:10px 0;font-weight:600;text-align:right;{$border}'>{$value}</td>
+        </tr>";
+    }
+    return $html . '</table>';
+}
+
+/** Wrap notification body HTML in a full branded email layout */
+function _notifWrap(string $title, string $body): string
+{
+    $ts = date('d M Y, h:i A');
+    return <<<HTML
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px">
+  <tr><td align="center">
+    <table width="580" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.08)">
+      <tr><td style="background:#111;padding:24px 32px">
+        <p style="color:#fff;font-size:22px;font-weight:700;margin:0;letter-spacing:-0.5px">Obsiguard CRM</p>
+        <p style="color:#888;font-size:13px;margin:4px 0 0">Automated Notification</p>
+      </td></tr>
+      <tr><td style="padding:32px">
+        <p style="font-size:18px;font-weight:700;color:#111;margin:0 0 12px">$title</p>
+        $body
+      </td></tr>
+      <tr><td style="background:#fafafa;padding:16px 32px;border-top:1px solid #f0f0f0">
+        <p style="color:#aaa;font-size:12px;margin:0;text-align:center">$ts &middot; Obsiguard CRM &middot; Automated notification. Do not reply.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>
+HTML;
+}
 ?>

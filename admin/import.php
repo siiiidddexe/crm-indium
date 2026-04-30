@@ -88,6 +88,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $msg .= " ($dupeCount duplicates skipped)";
                 }
                 setFlash('success', $msg);
+
+                if ($count > 0) {
+                    sendNotification('new_leads', [
+                        'count'  => $count,
+                        'source' => 'CSV Upload: ' . basename($file['name']),
+                        'date'   => $importDate,
+                    ]);
+                }
             } else {
                 setFlash('error', 'Please upload a CSV file.');
             }

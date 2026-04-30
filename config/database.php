@@ -409,7 +409,17 @@ class Database
                 password_hash('Super@2026', PASSWORD_DEFAULT)
             ]);
         }
-    }
+
+        // Seed NexoMailer API key if not already set
+        $nxmKey = $this->pdo->query("SELECT setting_value FROM app_settings WHERE setting_key='nexomailer_api_key'")->fetch();
+        if (!$nxmKey || empty($nxmKey['setting_value'])) {
+            $this->pdo->prepare(
+                "INSERT OR REPLACE INTO app_settings (setting_key, setting_value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)"
+            )->execute(['nexomailer_api_key', 'nxm_cd77931840e648035c758086363830520c46bbe493005c7b']);
+            $this->pdo->prepare(
+                "INSERT OR REPLACE INTO app_settings (setting_key, setting_value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)"
+            )->execute(['nexomailer_enabled', '1']);
+        }
 
     public function query($sql, $params = [])
     {

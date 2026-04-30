@@ -51,6 +51,13 @@ switch ($plugin['type']) {
 
 db()->update("UPDATE plugins SET last_sync = CURRENT_TIMESTAMP WHERE id = ?", [$pluginId]);
 
+// Fire notification
+sendNotification('sync_complete', [
+    'count'       => $imported,
+    'plugin_name' => $plugin['name'],
+    'errors'      => count($errors),
+]);
+
 jsonResponse([
     'success'  => true,
     'imported' => $imported,

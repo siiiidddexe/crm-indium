@@ -30,6 +30,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if ($action === 'save_notifications') {
+        setSetting('notif_recipient_email', trim($_POST['notif_recipient_email'] ?? ''));
+        setSetting('notif_new_leads',       isset($_POST['notif_new_leads'])    ? '1' : '0');
+        setSetting('notif_sync_complete',   isset($_POST['notif_sync_complete']) ? '1' : '0');
+        setSetting('notif_eod_report',      isset($_POST['notif_eod_report'])   ? '1' : '0');
+        // Regenerate cron key if requested
+        if (!empty($_POST['regen_cron_key'])) {
+            setSetting('notif_eod_cron_key', bin2hex(random_bytes(16)));
+        }
+        // Also auto-enable NexoMailer if a key exists
+        if (getSetting('nexomailer_api_key', '') !== '') {
+            setSetting('nexomailer_enabled', '1');
+        }
+        setFlash('success', 'Notification settings saved!');
+        header('Location: settings.php');
+        exit;
+    }
+
     if ($action === 'add_rule') {
         $name      = sanitize($_POST['rule_name'] ?? '');
         $statusId  = intval($_POST['status_id'] ?? 0);
@@ -71,6 +89,15 @@ $nexoMailerEnabled  = getSetting('nexomailer_enabled', '0') === '1';
 $nexoMailerApiKey   = getSetting('nexomailer_api_key', '');
 $showWhatsAppBtn    = getFeatureFlag('whatsapp_btn', 1);
 $showEmailBtn       = getFeatureFlag('email_btn', 0);
+$notifEmail         = getSetting('notif_recipient_email', '');
+$notifNewLeads      = getSetting('notif_new_leads', '0') === '1';
+$notifSyncComplete  = getSetting('notif_sync_complete', '0') === '1';
+$notifEodReport     = getSetting('notif_eod_report', '0') === '1';
+$notifCronKey       = getSetting('notif_eod_cron_key', '');
+if (!$notifCronKey) {
+    $notifCronKey = bin2hex(random_bytes(16));
+    setSetting('notif_eod_cron_key', $notifCronKey);
+}
 $rules              = db()->fetchAll("
     SELECT r.*, cs.name as status_name, cs.color as status_color
     FROM auto_assign_rules r
@@ -179,6 +206,93 @@ require_once __DIR__ . '/../includes/header.php';
                 <button type="submit"
                     class="px-6 py-2.5 bg-black text-white rounded-xl font-medium hover:bg-gray-800 transition-colors">
                     Save Email Settings
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Notifications -->
+    <form method="POST" class="mb-6">
+        <input type="hidden" name="action" value="save_notifications">
+        <div class="bg-white rounded-2xl border border-gray-200 p-6 space-y-6">
+            <h2 class="text-lg font-bold text-black border-b border-gray-100 pb-3">Notifications (NexoMailer)</h2>
+
+            <!-- Recipient -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Notification Recipient Email *</label>
+                <input type="email" name="notif_recipient_email" value="<?= sanitize($notifEmail) ?>"
+                    placeholder="admin@yourdomain.com"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-black focus:border-black">
+                <p class="text-xs text-gray-400 mt-1">All event notifications and the daily report are sent to this address.</p>
+            </div>
+
+            <!-- New Leads -->
+            <div class="flex items-start justify-between gap-4 pt-4 border-t border-gray-100">
+                <div class="flex-1">
+                    <h3 class="font-semibold text-black">New Leads Imported</h3>
+                    <p class="text-sm text-gray-500 mt-1">Send an email instantly when contacts are imported via CSV upload or plugin sync.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                    <input type="checkbox" name="notif_new_leads" class="sr-only peer" <?= $notifNewLeads ? 'checked' : '' ?>>
+                    <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-7 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-black"></div>
+                </label>
+            </div>
+
+            <!-- Sync Complete -->
+            <div class="flex items-start justify-between gap-4 pt-4 border-t border-gray-100">
+                <div class="flex-1">
+                    <h3 class="font-semibold text-black">Plugin Sync Complete</h3>
+                    <p class="text-sm text-gray-500 mt-1">Send an email when a Google Sheets or Meta Ads sync finishes, with lead count and any errors.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                    <input type="checkbox" name="notif_sync_complete" class="sr-only peer" <?= $notifSyncComplete ? 'checked' : '' ?>>
+                    <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-7 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-black"></div>
+                </label>
+            </div>
+
+            <!-- EOD Report -->
+            <div class="flex items-start justify-between gap-4 pt-4 border-t border-gray-100">
+                <div class="flex-1">
+                    <h3 class="font-semibold text-black">End of Day Report</h3>
+                    <p class="text-sm text-gray-500 mt-1">
+                        Enable the EOD report endpoint. Trigger via cron or the button below.
+                        Includes today's import stats, calls made, top performers, and pending leads.
+                    </p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                    <input type="checkbox" name="notif_eod_report" class="sr-only peer" <?= $notifEodReport ? 'checked' : '' ?>>
+                    <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-7 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-black"></div>
+                </label>
+            </div>
+
+            <!-- Cron URL -->
+            <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2">
+                <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Cron URL (schedule daily at 11 PM)</p>
+                <div class="flex gap-2">
+                    <input type="text" id="cronUrlField" readonly
+                        value="<?= sanitize(APP_URL) ?>/api/eod_report.php?key=<?= sanitize($notifCronKey) ?>"
+                        class="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-xl text-xs font-mono text-gray-700 focus:outline-none select-all">
+                    <button type="button" onclick="copyCronUrl()"
+                        class="px-3 py-2 bg-gray-200 rounded-xl text-xs font-medium hover:bg-gray-300 transition-colors shrink-0">Copy</button>
+                </div>
+                <p class="text-xs text-gray-400">Example cron: <code class="bg-gray-100 px-1 rounded">0 23 * * * curl "URL_ABOVE" &gt; /dev/null</code></p>
+                <label class="flex items-center gap-2 cursor-pointer mt-1">
+                    <input type="checkbox" name="regen_cron_key" class="w-4 h-4 rounded border-gray-300">
+                    <span class="text-xs text-gray-500">Regenerate secret key on save</span>
+                </label>
+            </div>
+
+            <div class="flex gap-3 pt-2 border-t border-gray-100">
+                <button type="submit"
+                    class="px-6 py-2.5 bg-black text-white rounded-xl font-medium hover:bg-gray-800 transition-colors">
+                    Save Notification Settings
+                </button>
+                <button type="button" onclick="sendEodNow(this)"
+                    class="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                    </svg>
+                    Send EOD Report Now
                 </button>
             </div>
         </div>
@@ -304,6 +418,34 @@ function hideModal(id) {
 document.querySelectorAll('[data-modal-backdrop]').forEach(el => {
     el.addEventListener('click', e => { if (e.target === el) hideModal(el.id); });
 });
+
+function copyCronUrl() {
+    const el = document.getElementById('cronUrlField');
+    el.select();
+    navigator.clipboard.writeText(el.value).then(() => {
+        el.blur();
+        alert('Cron URL copied!');
+    });
+}
+
+function sendEodNow(btn) {
+    const key = <?= json_encode($notifCronKey) ?>;
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    fetch('<?= APP_URL ?>/api/eod_report.php?key=' + encodeURIComponent(key))
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert('EOD report sent to ' + (data.sent_to || 'recipient') + '!');
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        }).catch(() => alert('Network error sending EOD report.'))
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg> Send EOD Report Now';
+        });
+}
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
