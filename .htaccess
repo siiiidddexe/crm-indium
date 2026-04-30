@@ -1,11 +1,8 @@
 Options -Indexes
 RewriteEngine On
 
-# Force HTTPS on production (skip on localhost/MAMP)
-RewriteCond %{HTTP_HOST} !^localhost [NC]
-RewriteCond %{HTTP_HOST} !^127\.0\.0\.1 [NC]
-RewriteCond %{HTTPS} off
-RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+# Allow Let's Encrypt ACME challenge through (never redirect this)
+RewriteRule ^\.well-known/ - [L]
 
 # Route everything through index.php if file/dir doesn't exist
 RewriteCond %{REQUEST_FILENAME} !-f
