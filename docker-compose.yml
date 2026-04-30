@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  crm:
+    build: .
+    container_name: crm-indium
+    ports:
+      - "8080:80"
+    volumes:
+      # Persist the SQLite database across container restarts
+      - crm_data:/var/www/html/crm/config
+    restart: unless-stopped
+    environment:
+      - APACHE_RUN_USER=www-data
+      - APACHE_RUN_GROUP=www-data
+
+volumes:
+  crm_data:
+    driver: local

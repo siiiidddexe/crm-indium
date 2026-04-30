@@ -1,0 +1,28 @@
+# Version control
+.git
+.gitignore
+
+# Docker files (not needed inside image)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Development & editor files
+.vscode
+.idea
+*.code-workspace
+
+# macOS
+.DS_Store
+__MACOSX
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*.bak
+
+# The SQLite database is handled via volume mount
+config/crm.db
