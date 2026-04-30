@@ -109,6 +109,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($_POST['filter_date']) && $_POST['filter_date']) $redirectParams[] = 'date=' . $_POST['filter_date'];
         header('Location: import.php' . (!empty($redirectParams) ? '?' . implode('&', $redirectParams) : ''));
         exit;
+    } elseif ($action === 'auto_assign') {
+        // Randomly distribute all unassigned contacts to active employees (round-robin shuffle)
+        $autoDate = $_POST['filter_date'] ?? '';
+        $whereAuto = "assigned_to IS NULL";
+        $autoParams = [];
+        if ($autoDate) {
+            $whereAuto .= " AND import_date = ?";
+            $autoParams[] = $autoDate;
+        }
+        $unassigned = db()->fetchAll("SELECT id FROM contacts WHERE $whereAuto ORDER BY id", $autoParams);
+        $employees  = db()->fetchAll("SELECT id FROM users WHERE role IN ('employee','teamlead') AND is_active = 1 ORDER BY id");
+
+        if (!empty($unassigned) && !empty($employees)) {
+            $empIds = array_column($employees, 'id');
+            shuffle($empIds); // randomise order
+            $total  = count($unassigned);
+            $empCnt = count($empIds);
+            $assigned = 0;
+            foreach ($unassigned as $i => $row) {
+                $empId = $empIds[$i % $empCnt];
+                db()->update("UPDATE contacts SET assigned_to = ? WHERE id = ?", [$empId, $row['id']]);
+                $assigned++;
+            }
+            setFlash('success', "$assigned contacts auto-assigned across $empCnt staff member(s).");
+        } else {
+            setFlash('error', empty($employees) ? 'No active staff to assign to.' : 'No unassigned contacts found.');
+        }
+        $redirectParams = [];
+        if ($autoDate) $redirectParams[] = 'date=' . $autoDate;
+        header('Location: import.php' . (!empty($redirectParams) ? '?' . implode('&', $redirectParams) : ''));
+        exit;
     } elseif ($action === 'bulk_delete') {
         $contactIds = $_POST['contact_ids'] ?? [];
 
@@ -490,6 +521,14 @@ require_once __DIR__ . '/../includes/header.php';
                             </svg>
                             Assign Range
                         </button>
+
+                        <button type="button" onclick="confirmAutoAssign()"
+                            class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 w-full sm:w-auto flex items-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                            Auto Assign
+                        </button>
                     </div>
                 </div>
 
@@ -737,6 +776,12 @@ require_once __DIR__ . '/../includes/header.php';
 <form id="deleteForm" method="POST" class="hidden">
     <input type="hidden" name="action" value="delete_single">
     <input type="hidden" name="id" id="deleteId">
+</form>
+
+<!-- Auto Assign Form (hidden) -->
+<form id="autoAssignForm" method="POST" class="hidden">
+    <input type="hidden" name="action" value="auto_assign">
+    <input type="hidden" name="filter_date" value="<?= htmlspecialchars($filterDate) ?>">
 </form>
 
 <!-- Range Assignment Modal -->
@@ -1144,6 +1189,17 @@ require_once __DIR__ . '/../includes/header.php';
     function deleteContact(id) {
         document.getElementById('deleteId').value = id;
         document.getElementById('deleteForm').submit();
+    }
+
+    function confirmAutoAssign() {
+        const unassigned = <?= $unassignedCount ?>;
+        const staff = <?= count($allStaff) ?>;
+        if (staff === 0) { showToast('No active staff to assign to.', 'error'); return; }
+        if (unassigned === 0) { showToast('No unassigned contacts to distribute.', 'error'); return; }
+        const dateLabel = <?= $filterDate ? json_encode('for ' . formatDate($filterDate, 'M d, Y')) : "'(all dates)'" ?>;
+        if (confirm(`Auto-assign ${unassigned} unassigned contacts ${dateLabel} randomly across ${staff} staff members?\n\nThis cannot be undone.`)) {
+            document.getElementById('autoAssignForm').submit();
+        }
     }
 
     // ========== Range Assignment Functions ==========
