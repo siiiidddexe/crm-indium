@@ -420,6 +420,7 @@ class Database
                 "INSERT OR REPLACE INTO app_settings (setting_key, setting_value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)"
             )->execute(['nexomailer_enabled', '1']);
         }
+    }
 
     public function query($sql, $params = [])
     {
