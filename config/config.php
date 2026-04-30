@@ -47,7 +47,15 @@ function userRole()
  */
 function isAdmin()
 {
-    return userRole() === 'admin';
+    return userRole() === 'admin' || userRole() === 'super_admin';
+}
+
+/**
+ * Check if current user is super admin
+ */
+function isSuperAdmin()
+{
+    return userRole() === 'super_admin';
 }
 
 /**
@@ -90,6 +98,18 @@ function requireAdmin()
 }
 
 /**
+ * Require super admin role
+ */
+function requireSuperAdmin()
+{
+    requireAuth();
+    if (!isSuperAdmin()) {
+        header('Location: ' . APP_URL . '/login.php');
+        exit;
+    }
+}
+
+/**
  * Require team lead role
  */
 function requireTeamLead()
@@ -120,6 +140,9 @@ function redirectByRole()
 {
     $role = userRole();
     switch ($role) {
+        case 'super_admin':
+            header('Location: ' . APP_URL . '/superadmin/index.php');
+            break;
         case 'admin':
             header('Location: ' . APP_URL . '/admin/index.php');
             break;
@@ -324,5 +347,77 @@ function applyMapping($template, array $row): string
         $key = $m[1];
         return isset($row[$key]) ? trim((string)$row[$key]) : '';
     }, $template);
+}
+
+/**
+ * Get a feature flag value (1 = enabled, 0 = disabled)
+ */
+function getFeatureFlag(string $key, int $default = 1): int
+{
+    $row = db()->fetch("SELECT is_enabled FROM feature_flags WHERE flag_key = ?", [$key]);
+    return $row !== false ? (int)$row['is_enabled'] : $default;
+}
+
+/**
+ * Get all feature flags as associative array key => is_enabled
+ */
+function getAllFeatureFlags(): array
+{
+    $rows = db()->fetchAll("SELECT flag_key, is_enabled FROM feature_flags");
+    $result = [];
+    foreach ($rows as $r) {
+        $result[$r['flag_key']] = (int)$r['is_enabled'];
+    }
+    return $result;
+}
+
+/**
+ * Send an email via NexoMailer
+ * Returns true on success, false on failure
+ */
+function sendNexoEmail(string $to, string $subject, string $html): bool
+{
+    $apiKey = getSetting('nexomailer_api_key', '');
+    if (empty($apiKey) || getSetting('nexomailer_enabled', '0') !== '1') {
+        return false;
+    }
+
+    $payload = json_encode([
+        'to'       => $to,
+        'subject'  => $subject,
+        'html'     => $html,
+        'app_name' => APP_NAME,
+    ]);
+
+    $ch = curl_init('https://nexomail.logiclaunch.in/api/send');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $payload,
+        CURLOPT_TIMEOUT        => 10,
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'X-API-Key: ' . $apiKey,
+        ],
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($response === false || $httpCode < 200 || $httpCode >= 300) {
+        return false;
+    }
+
+    $data = json_decode($response, true);
+    return !empty($data['success']) || !empty($data['queued']);
+}
+
+/**
+ * Get all email templates
+ */
+function getEmailTemplates()
+{
+    return db()->fetchAll("SELECT * FROM email_templates WHERE is_active = 1 ORDER BY name");
 }
 ?>

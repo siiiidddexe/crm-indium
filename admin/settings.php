@@ -16,6 +16,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if ($action === 'save_email_settings') {
+        $apiKey  = trim($_POST['nexomailer_api_key'] ?? '');
+        setSetting('nexomailer_api_key', $apiKey);
+        setSetting('nexomailer_enabled', isset($_POST['nexomailer_enabled']) ? '1' : '0');
+        // Button visibility stored as feature flags
+        db()->update("UPDATE feature_flags SET is_enabled = ? WHERE flag_key = 'whatsapp_btn'",
+            [isset($_POST['show_whatsapp_btn']) ? 1 : 0]);
+        db()->update("UPDATE feature_flags SET is_enabled = ? WHERE flag_key = 'email_btn'",
+            [isset($_POST['show_email_btn']) ? 1 : 0]);
+        setFlash('success', 'Email settings saved!');
+        header('Location: settings.php');
+        exit;
+    }
+
     if ($action === 'add_rule') {
         $name      = sanitize($_POST['rule_name'] ?? '');
         $statusId  = intval($_POST['status_id'] ?? 0);
@@ -53,6 +67,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $enableNotes        = getSetting('enable_notes', '0') === '1';
 $autoAssignEnabled  = getSetting('auto_assign_enabled', '0') === '1';
 $autoAssignInterval = intval(getSetting('auto_assign_interval', '20'));
+$nexoMailerEnabled  = getSetting('nexomailer_enabled', '0') === '1';
+$nexoMailerApiKey   = getSetting('nexomailer_api_key', '');
+$showWhatsAppBtn    = getFeatureFlag('whatsapp_btn', 1);
+$showEmailBtn       = getFeatureFlag('email_btn', 0);
 $rules              = db()->fetchAll("
     SELECT r.*, cs.name as status_name, cs.color as status_color
     FROM auto_assign_rules r
@@ -77,29 +95,6 @@ require_once __DIR__ . '/../includes/header.php';
     <!-- General Settings -->
     <form method="POST" class="mb-6">
         <input type="hidden" name="action" value="save_settings">
-        <div class="bg-white rounded-2xl border border-gray-200 p-6 space-y-6">
-            <h2 class="text-lg font-bold text-black border-b border-gray-100 pb-3">General</h2>
-
-            <!-- Enable Notes -->
-            <div class="flex items-start justify-between gap-4">
-                <div class="flex-1">
-                    <h3 class="font-semibold text-black">Enable Notes</h3>
-                    <p class="text-sm text-gray-500 mt-1">
-                        When enabled, replaces the language-move button on calling cards with a <strong>Notes</strong> button.
-                        Employees can add timestamped call notes per contact for context.
-                    </p>
-                </div>
-                <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-                    <input type="checkbox" name="enable_notes" class="sr-only peer" <?= $enableNotes ? 'checked' : '' ?>>
-                    <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-7 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-black"></div>
-                </label>
-            </div>
-
-            <!-- Auto-Assign -->
-            <div class="flex items-start justify-between gap-4 pt-4 border-t border-gray-100">
-                <div class="flex-1">
-                    <h3 class="font-semibold text-black">Auto-Assign New Leads</h3>
-                    <p class="text-sm text-gray-500 mt-1">
                         Automatically distributes unassigned contacts to active employees in a round-robin fashion.
                         Runs every <strong id="intervalPreview"><?= $autoAssignInterval ?></strong> seconds while an admin is logged in.
                     </p>
@@ -124,6 +119,66 @@ require_once __DIR__ . '/../includes/header.php';
                 <button type="submit"
                     class="px-6 py-2.5 bg-black text-white rounded-xl font-medium hover:bg-gray-800 transition-colors">
                     Save Settings
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <!-- NexoMailer & Button Visibility -->
+    <form method="POST" class="mb-6">
+        <input type="hidden" name="action" value="save_email_settings">
+        <div class="bg-white rounded-2xl border border-gray-200 p-6 space-y-6">
+            <h2 class="text-lg font-bold text-black border-b border-gray-100 pb-3">Email (NexoMailer)</h2>
+
+            <!-- NexoMailer Enabled -->
+            <div class="flex items-start justify-between gap-4">
+                <div class="flex-1">
+                    <h3 class="font-semibold text-black">Enable NexoMailer</h3>
+                    <p class="text-sm text-gray-500 mt-1">Allow sending emails from calling cards via NexoMailer. Requires a valid API key below.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                    <input type="checkbox" name="nexomailer_enabled" class="sr-only peer" <?= $nexoMailerEnabled ? 'checked' : '' ?>>
+                    <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-7 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-black"></div>
+                </label>
+            </div>
+
+            <!-- API Key -->
+            <div class="pt-2 border-t border-gray-100">
+                <label class="block text-sm font-medium text-gray-700 mb-1">NexoMailer API Key</label>
+                <input type="text" name="nexomailer_api_key" value="<?= sanitize($nexoMailerApiKey) ?>"
+                    placeholder="nxm_your_key_here"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm font-mono focus:ring-2 focus:ring-black focus:border-black">
+                <p class="text-xs text-gray-400 mt-1">Get your key from <a href="https://nexomail.logiclaunch.in" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">nexomail.logiclaunch.in</a></p>
+            </div>
+
+            <!-- WhatsApp Button Toggle -->
+            <div class="flex items-start justify-between gap-4 pt-4 border-t border-gray-100">
+                <div class="flex-1">
+                    <h3 class="font-semibold text-black">Show WhatsApp Button</h3>
+                    <p class="text-sm text-gray-500 mt-1">Display the WhatsApp button on calling cards for employees and team leads.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                    <input type="checkbox" name="show_whatsapp_btn" class="sr-only peer" <?= $showWhatsAppBtn ? 'checked' : '' ?>>
+                    <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-7 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-black"></div>
+                </label>
+            </div>
+
+            <!-- Email Button Toggle -->
+            <div class="flex items-start justify-between gap-4 pt-4 border-t border-gray-100">
+                <div class="flex-1">
+                    <h3 class="font-semibold text-black">Show Email Button</h3>
+                    <p class="text-sm text-gray-500 mt-1">Display an Email button on calling cards. Opens a modal to choose a template and send via NexoMailer.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                    <input type="checkbox" name="show_email_btn" class="sr-only peer" <?= $showEmailBtn ? 'checked' : '' ?>>
+                    <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-7 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-black"></div>
+                </label>
+            </div>
+
+            <div class="pt-2">
+                <button type="submit"
+                    class="px-6 py-2.5 bg-black text-white rounded-xl font-medium hover:bg-gray-800 transition-colors">
+                    Save Email Settings
                 </button>
             </div>
         </div>

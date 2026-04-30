@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         for ($i = 0; $i < count($targetFields); $i++) {
             $tf = trim($targetFields[$i] ?? '');
             $st = trim($sourceTemplates[$i] ?? '');
-            if ($tf && $st && in_array($tf, ['name', 'phone', 'notes'])) {
+            if ($tf && $st && in_array($tf, ['name', 'phone', 'notes', 'email'])) {
                 db()->insert(
                     "INSERT INTO plugin_mappings (plugin_id, target_field, source_template) VALUES (?, ?, ?)",
                     [$pluginId, $tf, $st]
@@ -308,8 +308,16 @@ $webhookBase = (!empty($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER
 
                 <!-- Google Sheets Config -->
                 <div id="config_google_sheets" class="type-config hidden space-y-4">
-                    <div class="p-3 bg-green-50 rounded-xl text-sm text-green-800">
-                        <strong>Google Sheets Setup:</strong> Make the sheet public (Viewer access for anyone with link) and provide the Spreadsheet ID.
+                    <div class="p-3 bg-green-50 rounded-xl text-sm text-green-800 space-y-1">
+                        <p class="font-semibold">Google Sheets Setup</p>
+                        <ol class="list-decimal list-inside space-y-1 text-green-700">
+                            <li>Open your Google Sheet and click <strong>Share</strong>.</li>
+                            <li>Set access to <strong>"Anyone with the link"</strong> → <strong>Viewer</strong>.</li>
+                            <li>Copy the Spreadsheet ID from the URL (see hint below).</li>
+                            <li>Set the range (e.g. <code>Sheet1!A:Z</code>). The first row must be the header row.</li>
+                            <li>For private sheets, create an API key in <a href="https://console.cloud.google.com/" target="_blank" class="underline">Google Cloud Console</a> and enable the Sheets API.</li>
+                            <li>Add field mappings using <strong>Detect Headers</strong> or type column names manually (e.g. <code>{Name}</code>).</li>
+                        </ol>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Spreadsheet ID or URL *</label>
@@ -330,12 +338,26 @@ $webhookBase = (!empty($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER
                             placeholder="AIza... (leave blank for public sheets)"
                             class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-black focus:border-black text-sm font-mono">
                     </div>
+                    <button type="button" onclick="detectGoogleSheetHeaders()"
+                        class="w-full py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2" id="detectHeadersBtn">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Detect Headers
+                    </button>
                 </div>
 
                 <!-- Google Ads Config -->
                 <div id="config_google_ads" class="type-config hidden space-y-4">
-                    <div class="p-3 bg-blue-50 rounded-xl text-sm text-blue-800">
-                        <strong>Google Ads Webhook:</strong> After saving, copy the generated webhook URL and paste it into Google Ads → Lead Forms → Webhook URL.
+                    <div class="p-3 bg-blue-50 rounded-xl text-sm text-blue-800 space-y-1">
+                        <p class="font-semibold">Google Ads Webhook Setup</p>
+                        <ol class="list-decimal list-inside space-y-1 text-blue-700">
+                            <li>Save this plugin first to generate a webhook URL.</li>
+                            <li>In Google Ads, go to <strong>Tools &amp; Settings → Lead Forms</strong>.</li>
+                            <li>Edit your lead form and find the <strong>Webhook</strong> section.</li>
+                            <li>Paste the generated webhook URL from this plugin card.</li>
+                            <li>Set the field mappings below to match your Google Ads lead form fields (e.g. <code>{FULL_NAME}</code>, <code>{PHONE_NUMBER}</code>).</li>
+                        </ol>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Developer Token</label>
@@ -370,8 +392,15 @@ $webhookBase = (!empty($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER
 
                 <!-- Meta Ads Config -->
                 <div id="config_meta_ads" class="type-config hidden space-y-4">
-                    <div class="p-3 bg-indigo-50 rounded-xl text-sm text-indigo-800">
-                        <strong>Meta Lead Ads:</strong> Provide a long-lived Page Access Token and the Lead Form ID from Meta Business Suite.
+                    <div class="p-3 bg-indigo-50 rounded-xl text-sm text-indigo-800 space-y-1">
+                        <p class="font-semibold">Meta Lead Ads Setup</p>
+                        <ol class="list-decimal list-inside space-y-1 text-indigo-700">
+                            <li>Go to <strong>Meta Business Suite → Instant Forms</strong> and find your form.</li>
+                            <li>Note the <strong>Lead Form ID</strong> (shown in form details).</li>
+                            <li>Generate a <strong>long-lived Page Access Token</strong> via Meta Graph API Explorer (permission: <code>leads_retrieval</code>).</li>
+                            <li>Set the API version (default <code>v19.0</code> is recommended).</li>
+                            <li>Use field key names from your Meta form in mappings (e.g. <code>{full_name}</code>, <code>{phone_number}</code>, <code>{email}</code>).</li>
+                        </ol>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Page Access Token *</label>
@@ -465,6 +494,7 @@ function addMappingRow(targetVal = '', sourceVal = '') {
             <option value="">Target</option>
             <option value="name" ${targetVal === 'name' ? 'selected' : ''}>name</option>
             <option value="phone" ${targetVal === 'phone' ? 'selected' : ''}>phone</option>
+            <option value="email" ${targetVal === 'email' ? 'selected' : ''}>email</option>
             <option value="notes" ${targetVal === 'notes' ? 'selected' : ''}>notes</option>
         </select>
         <span class="text-gray-400 text-xs">←</span>
@@ -520,6 +550,38 @@ function editPlugin(plugin) {
     (plugin.mappings || []).forEach(m => addMappingRow(m.target_field, m.source_template));
 
     showModal('addPluginModal');
+}
+
+function detectGoogleSheetHeaders() {
+    const spreadsheetId = document.getElementById('gs_spreadsheet_id').value.trim();
+    const range = document.getElementById('gs_range').value.trim() || 'Sheet1!A:Z';
+    const apiKey = document.getElementById('gs_api_key').value.trim();
+
+    if (!spreadsheetId) {
+        showToast('Please enter a Spreadsheet ID first.', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('detectHeadersBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Detecting...';
+
+    const params = new URLSearchParams({ spreadsheet_id: spreadsheetId, range, api_key: apiKey });
+    fetch('<?= APP_URL ?>/api/plugin_headers.php?' + params.toString())
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.headers && data.headers.length > 0) {
+                document.getElementById('mappingRows').innerHTML = '';
+                data.headers.forEach(h => addMappingRow('', '{' + h + '}'));
+                showToast('Detected ' + data.headers.length + ' column(s). Map target fields below.');
+            } else {
+                showToast(data.error || 'Could not detect headers. Check Spreadsheet ID and API key.', 'error');
+            }
+        }).catch(() => showToast('Network error detecting headers.', 'error'))
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> Detect Headers';
+        });
 }
 
 function syncPlugin(pluginId, btn) {

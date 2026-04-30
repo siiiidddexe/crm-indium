@@ -195,16 +195,21 @@ function upsertLead(int $pluginId, string $externalId, array $lead): int
 
     $name  = $lead['name']  ?? 'Unknown';
     $phone = $lead['phone'] ?? '';
+    $email = $lead['email'] ?? null;
     $notes = $lead['notes'] ?? null;
 
     // Check if contact with same phone exists
     $contact = db()->fetch("SELECT id FROM contacts WHERE phone = ?", [$phone]);
     if ($contact) {
         $contactId = $contact['id'];
+        // Update email/notes if newly available
+        if ($email !== null) {
+            db()->query("UPDATE contacts SET email = ? WHERE id = ? AND (email IS NULL OR email = '')", [$email, $contactId]);
+        }
     } else {
         $contactId = db()->insert(
-            "INSERT INTO contacts (name, phone, notes, import_date, created_at) VALUES (?, ?, ?, DATE('now'), CURRENT_TIMESTAMP)",
-            [$name, $phone, $notes]
+            "INSERT INTO contacts (name, phone, email, notes, import_date, created_at) VALUES (?, ?, ?, ?, DATE('now'), CURRENT_TIMESTAMP)",
+            [$name, $phone, $email, $notes]
         );
     }
 

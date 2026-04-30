@@ -1,6 +1,12 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 $currentPage = basename($_SERVER['PHP_SELF']);
+// Load feature flags once for nav visibility
+$_ff = isLoggedIn() ? getAllFeatureFlags() : [];
+function ff(string $key, int $default = 1): int {
+    global $_ff;
+    return isset($_ff[$key]) ? (int)$_ff[$key] : $default;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -444,91 +450,38 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 
             <!-- Navigation -->
             <nav class="flex-1 overflow-y-auto p-4 space-y-1">
-                <?php if (isAdmin()): ?>
-                    <a href="<?= APP_URL ?>/admin/index.php"
-                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'index.php' && strpos($_SERVER['REQUEST_URI'], '/admin/') !== false ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
+                <?php if (isSuperAdmin()): ?>
+                    <a href="<?= APP_URL ?>/superadmin/index.php"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'index.php' && strpos($_SERVER['REQUEST_URI'], '/superadmin/') !== false ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                         </svg>
                         <span>Dashboard</span>
                     </a>
-                    <a href="<?= APP_URL ?>/admin/employees.php"
-                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'employees.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
+                    <a href="<?= APP_URL ?>/superadmin/admins.php"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'admins.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
-                        <span>Employees</span>
+                        <span>Manage Admins</span>
                     </a>
-                    <a href="<?= APP_URL ?>/admin/teamleads.php"
-                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'teamleads.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
+                    <a href="<?= APP_URL ?>/superadmin/features.php"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'features.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                         </svg>
-                        <span>Team Leads</span>
+                        <span>Feature Visibility</span>
                     </a>
-                    <a href="<?= APP_URL ?>/admin/import.php"
-                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'import.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
+                    <a href="<?= APP_URL ?>/admin/email_templates.php"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'email_templates.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                         </svg>
-                        <span>Import & Manage</span>
-                    </a>
-                    <a href="<?= APP_URL ?>/admin/reports.php"
-                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'reports.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
-                        <span>Reports</span>
-                    </a>
-                    <a href="<?= APP_URL ?>/admin/attendance.php"
-                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'attendance.php' && strpos($_SERVER['REQUEST_URI'], '/admin/') !== false ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span>Attendance</span>
-                    </a>
-                    <a href="<?= APP_URL ?>/admin/statuses.php"
-                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'statuses.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                        </svg>
-                        <span>Call Statuses</span>
-                    </a>
-                    <?php $adminPendingLang = getPendingMoveRequestsCount(); ?>
-                    <a href="<?= APP_URL ?>/admin/language_conflicts.php"
-                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'language_conflicts.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-                        </svg>
-                        <span>Language Conflicts</span>
-                        <?php if ($adminPendingLang > 0): ?>
-                            <span
-                                class="ml-auto px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-bold"><?= $adminPendingLang ?></span>
-                        <?php endif; ?>
-                    </a>
-                    <a href="<?= APP_URL ?>/admin/templates.php"
-                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'templates.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                        </svg>
-                        <span>WA Templates</span>
-                    </a>
-                    <a href="<?= APP_URL ?>/admin/plugins.php"
-                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'plugins.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
-                        </svg>
-                        <span>Plugins</span>
+                        <span>Email Templates</span>
                     </a>
                     <a href="<?= APP_URL ?>/admin/settings.php"
                         class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'settings.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
@@ -538,6 +491,138 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                         </svg>
                         <span>Settings</span>
                     </a>
+                    <a href="<?= APP_URL ?>/admin/plugins.php"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'plugins.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
+                        </svg>
+                        <span>Plugins</span>
+                    </a>
+
+                <?php elseif (isAdmin()): ?>
+                    <a href="<?= APP_URL ?>/admin/index.php"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'index.php' && strpos($_SERVER['REQUEST_URI'], '/admin/') !== false ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                        <span>Dashboard</span>
+                    </a>
+                    <?php if (ff('nav_admin_employees')): ?>
+                    <a href="<?= APP_URL ?>/admin/employees.php"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'employees.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        <span>Employees</span>
+                    </a>
+                    <?php endif; ?>
+                    <?php if (ff('nav_admin_teamleads')): ?>
+                    <a href="<?= APP_URL ?>/admin/teamleads.php"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'teamleads.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        <span>Team Leads</span>
+                    </a>
+                    <?php endif; ?>
+                    <?php if (ff('nav_admin_import')): ?>
+                    <a href="<?= APP_URL ?>/admin/import.php"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'import.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        <span>Import & Manage</span>
+                    </a>
+                    <?php endif; ?>
+                    <?php if (ff('nav_admin_reports')): ?>
+                    <a href="<?= APP_URL ?>/admin/reports.php"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'reports.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        <span>Reports</span>
+                    </a>
+                    <?php endif; ?>
+                    <?php if (ff('nav_admin_attendance')): ?>
+                    <a href="<?= APP_URL ?>/admin/attendance.php"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'attendance.php' && strpos($_SERVER['REQUEST_URI'], '/admin/') !== false ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span>Attendance</span>
+                    </a>
+                    <?php endif; ?>
+                    <?php if (ff('nav_admin_statuses')): ?>
+                    <a href="<?= APP_URL ?>/admin/statuses.php"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'statuses.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                        <span>Call Statuses</span>
+                    </a>
+                    <?php endif; ?>
+                    <?php if (ff('nav_admin_language')): ?>
+                    <?php $adminPendingLang = getPendingMoveRequestsCount(); ?>
+                    <a href="<?= APP_URL ?>/admin/language_conflicts.php"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'language_conflicts.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                        </svg>
+                        <span>Language Conflicts</span>
+                        <?php if ($adminPendingLang > 0): ?>
+                            <span class="ml-auto px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-bold"><?= $adminPendingLang ?></span>
+                        <?php endif; ?>
+                    </a>
+                    <?php endif; ?>
+                    <?php if (ff('nav_admin_templates')): ?>
+                    <a href="<?= APP_URL ?>/admin/templates.php"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'templates.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                        </svg>
+                        <span>WA Templates</span>
+                    </a>
+                    <?php endif; ?>
+                    <?php if (ff('nav_admin_email_templates')): ?>
+                    <a href="<?= APP_URL ?>/admin/email_templates.php"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'email_templates.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <span>Email Templates</span>
+                    </a>
+                    <?php endif; ?>
+                    <?php if (ff('nav_admin_plugins')): ?>
+                    <a href="<?= APP_URL ?>/admin/plugins.php"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'plugins.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
+                        </svg>
+                        <span>Plugins</span>
+                    </a>
+                    <?php endif; ?>
+                    <?php if (ff('nav_admin_settings')): ?>
+                    <a href="<?= APP_URL ?>/admin/settings.php"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'settings.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span>Settings</span>
+                    </a>
+                    <?php endif; ?>
 
                 <?php elseif (isTeamLead()): ?>
                     <a href="<?= APP_URL ?>/teamlead/index.php"
@@ -548,6 +633,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                         </svg>
                         <span>Dashboard</span>
                     </a>
+                    <?php if (ff('nav_tl_contacts')): ?>
                     <a href="<?= APP_URL ?>/teamlead/contacts.php"
                         class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'contacts.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -556,6 +642,8 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                         </svg>
                         <span>My Contacts</span>
                     </a>
+                    <?php endif; ?>
+                    <?php if (ff('nav_tl_calls')): ?>
                     <a href="<?= APP_URL ?>/teamlead/calls.php"
                         class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'calls.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -564,6 +652,8 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                         </svg>
                         <span>Calling Cards</span>
                     </a>
+                    <?php endif; ?>
+                    <?php if (ff('nav_tl_team')): ?>
                     <a href="<?= APP_URL ?>/teamlead/team.php"
                         class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'team.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -572,6 +662,8 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                         </svg>
                         <span>My Team</span>
                     </a>
+                    <?php endif; ?>
+                    <?php if (ff('nav_tl_reports')): ?>
                     <a href="<?= APP_URL ?>/teamlead/reports.php"
                         class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'reports.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -580,6 +672,8 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                         </svg>
                         <span>Reports</span>
                     </a>
+                    <?php endif; ?>
+                    <?php if (ff('nav_tl_language')): ?>
                     <?php $tlPendingLang = getPendingMoveRequestsCount($_SESSION['user_id']); ?>
                     <a href="<?= APP_URL ?>/teamlead/language_conflicts.php"
                         class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'language_conflicts.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
@@ -589,10 +683,11 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                         </svg>
                         <span>Language Conflicts</span>
                         <?php if ($tlPendingLang > 0): ?>
-                            <span
-                                class="ml-auto px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-bold"><?= $tlPendingLang ?></span>
+                            <span class="ml-auto px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-bold"><?= $tlPendingLang ?></span>
                         <?php endif; ?>
                     </a>
+                    <?php endif; ?>
+                    <?php if (ff('nav_tl_attendance')): ?>
                     <a href="<?= APP_URL ?>/teamlead/attendance.php"
                         class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'attendance.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -601,6 +696,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                         </svg>
                         <span>My Attendance</span>
                     </a>
+                    <?php endif; ?>
                     <a href="<?= APP_URL ?>/employee/profile.php"
                         class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'profile.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -619,6 +715,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                         </svg>
                         <span>Dashboard</span>
                     </a>
+                    <?php if (ff('nav_emp_calls')): ?>
                     <a href="<?= APP_URL ?>/employee/calls.php"
                         class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'calls.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -627,6 +724,8 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                         </svg>
                         <span>Calling Cards</span>
                     </a>
+                    <?php endif; ?>
+                    <?php if (ff('nav_emp_language')): ?>
                     <?php $empPendingLang = db()->fetch("SELECT COUNT(*) as count FROM language_move_requests WHERE (requested_by = ? OR assigned_to = ?) AND status = 'pending'", [$_SESSION['user_id'], $_SESSION['user_id']])['count']; ?>
                     <a href="<?= APP_URL ?>/employee/language_conflicts.php"
                         class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'language_conflicts.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
@@ -636,10 +735,11 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                         </svg>
                         <span>Language Conflicts</span>
                         <?php if ($empPendingLang > 0): ?>
-                            <span
-                                class="ml-auto px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-bold"><?= $empPendingLang ?></span>
+                            <span class="ml-auto px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-bold"><?= $empPendingLang ?></span>
                         <?php endif; ?>
                     </a>
+                    <?php endif; ?>
+                    <?php if (ff('nav_emp_attendance')): ?>
                     <a href="<?= APP_URL ?>/employee/attendance.php"
                         class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'attendance.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -648,6 +748,8 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                         </svg>
                         <span>My Attendance</span>
                     </a>
+                    <?php endif; ?>
+                    <?php if (ff('nav_emp_profile')): ?>
                     <a href="<?= APP_URL ?>/employee/profile.php"
                         class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 <?= $currentPage === 'profile.php' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100' ?>">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -656,6 +758,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                         </svg>
                         <span>My Profile</span>
                     </a>
+                    <?php endif; ?>
                 <?php endif; ?>
             </nav>
 

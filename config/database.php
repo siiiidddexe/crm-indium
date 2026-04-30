@@ -63,7 +63,7 @@ class Database
             email TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
             phone TEXT,
-            role TEXT NOT NULL CHECK(role IN ('admin', 'teamlead', 'employee')),
+            role TEXT NOT NULL CHECK(role IN ('admin', 'teamlead', 'employee', 'super_admin')),
             teamlead_id INTEGER,
             is_active INTEGER DEFAULT 1,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -202,7 +202,7 @@ class Database
         CREATE TABLE IF NOT EXISTS plugin_mappings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             plugin_id INTEGER NOT NULL,
-            target_field TEXT NOT NULL CHECK(target_field IN ('name','phone','notes')),
+            target_field TEXT NOT NULL,
             source_template TEXT NOT NULL,
             FOREIGN KEY (plugin_id) REFERENCES plugins(id) ON DELETE CASCADE
         );
@@ -240,9 +240,95 @@ class Database
             FOREIGN KEY (contact_id) REFERENCES contacts(id),
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
+
+        -- Email templates (custom HTML, for NexoMailer)
+        CREATE TABLE IF NOT EXISTS email_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            html_body TEXT NOT NULL,
+            is_active INTEGER DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Feature flags (sidebar visibility, button toggles)
+        CREATE TABLE IF NOT EXISTS feature_flags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            flag_key TEXT UNIQUE NOT NULL,
+            is_enabled INTEGER DEFAULT 1,
+            label TEXT NOT NULL,
+            category TEXT DEFAULT 'general'
+        );
         ";
 
         $this->pdo->exec($schema);
+
+        // ── Run schema migrations ────────────────────────────────────────────────
+
+        // 1. Migrate users table to support super_admin role
+        $userDef = $this->pdo->query("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'")->fetch();
+        if ($userDef && strpos($userDef['sql'], 'super_admin') === false) {
+            $this->pdo->exec("PRAGMA foreign_keys=OFF");
+            $this->pdo->exec("CREATE TABLE users_v2 (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                phone TEXT,
+                role TEXT NOT NULL CHECK(role IN ('admin','teamlead','employee','super_admin')),
+                teamlead_id INTEGER,
+                is_active INTEGER DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (teamlead_id) REFERENCES users_v2(id)
+            )");
+            $this->pdo->exec("INSERT INTO users_v2 SELECT * FROM users");
+            $this->pdo->exec("DROP TABLE users");
+            $this->pdo->exec("ALTER TABLE users_v2 RENAME TO users");
+            $this->pdo->exec("PRAGMA foreign_keys=ON");
+        }
+
+        // 2. Add email column to contacts
+        try { $this->pdo->exec("ALTER TABLE contacts ADD COLUMN email TEXT"); } catch (\Exception $e) {}
+
+        // 3. Seed default feature flags
+        $ffCount = $this->pdo->query("SELECT COUNT(*) as c FROM feature_flags")->fetch();
+        if ($ffCount['c'] == 0) {
+            $flags = [
+                // Buttons
+                ['whatsapp_btn',              1, 'WhatsApp Button (calling cards)', 'buttons'],
+                ['email_btn',                 0, 'Email Button (calling cards)',     'buttons'],
+                // Admin nav
+                ['nav_admin_employees',       1, 'Employees',         'nav_admin'],
+                ['nav_admin_teamleads',       1, 'Team Leads',        'nav_admin'],
+                ['nav_admin_import',          1, 'Import & Manage',   'nav_admin'],
+                ['nav_admin_reports',         1, 'Reports',           'nav_admin'],
+                ['nav_admin_attendance',      1, 'Attendance',        'nav_admin'],
+                ['nav_admin_statuses',        1, 'Call Statuses',     'nav_admin'],
+                ['nav_admin_language',        1, 'Language Conflicts','nav_admin'],
+                ['nav_admin_templates',       1, 'WA Templates',      'nav_admin'],
+                ['nav_admin_email_templates', 1, 'Email Templates',   'nav_admin'],
+                ['nav_admin_plugins',         1, 'Plugins',           'nav_admin'],
+                ['nav_admin_settings',        1, 'Settings',          'nav_admin'],
+                // Employee nav
+                ['nav_emp_calls',             1, 'Calling Cards',        'nav_employee'],
+                ['nav_emp_attendance',        1, 'Attendance',           'nav_employee'],
+                ['nav_emp_profile',           1, 'Profile',              'nav_employee'],
+                ['nav_emp_language',          1, 'Language Conflicts',   'nav_employee'],
+                // Teamlead nav
+                ['nav_tl_contacts',           1, 'My Contacts',          'nav_teamlead'],
+                ['nav_tl_calls',              1, 'Calling Cards',        'nav_teamlead'],
+                ['nav_tl_team',               1, 'My Team',              'nav_teamlead'],
+                ['nav_tl_reports',            1, 'Reports',              'nav_teamlead'],
+                ['nav_tl_language',           1, 'Language Conflicts',   'nav_teamlead'],
+                ['nav_tl_attendance',         1, 'Attendance',           'nav_teamlead'],
+            ];
+            $stmt = $this->pdo->prepare("INSERT OR IGNORE INTO feature_flags (flag_key, is_enabled, label, category) VALUES (?,?,?,?)");
+            foreach ($flags as $f) {
+                $stmt->execute($f);
+            }
+        }
+
+        // ── End migrations ───────────────────────────────────────────────────────
 
         // Enable WAL mode for better concurrent read performance
         $this->pdo->exec("PRAGMA journal_mode=WAL;");
@@ -309,6 +395,18 @@ class Database
                 'Admin',
                 'admin@obsiguard.com',
                 password_hash('Admin@2026', PASSWORD_DEFAULT)
+            ]);
+        }
+
+        // Seed default super admin if none exists
+        $superCount = $this->pdo->query("SELECT COUNT(*) as count FROM users WHERE role='super_admin'")->fetch();
+        if ($superCount['count'] == 0) {
+            $this->pdo->prepare(
+                "INSERT OR IGNORE INTO users (name, email, password, role, is_active) VALUES (?, ?, ?, 'super_admin', 1)"
+            )->execute([
+                'Super Admin',
+                'superadmin@obsiguard.com',
+                password_hash('Super@2026', PASSWORD_DEFAULT)
             ]);
         }
     }
