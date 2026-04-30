@@ -188,7 +188,6 @@ require_once __DIR__ . '/../includes/header.php';
                         LEFT JOIN call_statuses cs ON cl.status_id = cs.id
                         WHERE cl.user_id = ? AND DATE(cl.call_time) BETWEEN ? AND ?
                         ORDER BY cl.call_time DESC
-                        LIMIT 50
                     ", [$emp['id'], $filterDateFrom, $filterDateTo]);
                     ?>
                     <?php if (empty($calls)): ?>

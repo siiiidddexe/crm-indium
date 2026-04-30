@@ -107,7 +107,6 @@ $contacts = db()->fetchAll("
     LEFT JOIN users u ON c.assigned_to = u.id
     WHERE $where
     ORDER BY c.is_called, c.created_at DESC
-    LIMIT 200
 ", $params);
 
 // Stats

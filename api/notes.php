@@ -21,7 +21,6 @@ if ($action === 'list') {
         JOIN users u ON cn.user_id = u.id
         WHERE cn.contact_id = ?
         ORDER BY cn.created_at DESC
-        LIMIT 50
     ", [$contactId]);
 
     jsonResponse(['success' => true, 'notes' => $notes]);

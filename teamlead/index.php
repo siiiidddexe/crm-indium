@@ -54,7 +54,6 @@ $unassignedContacts = db()->fetchAll("
     LEFT JOIN call_statuses cs ON c.status_id = cs.id
     WHERE c.assigned_to = ? AND c.is_called = 0
     ORDER BY c.created_at DESC
-    LIMIT 50
 ", [$userId]);
 
 require_once __DIR__ . '/../includes/header.php';

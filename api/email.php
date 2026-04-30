@@ -5,7 +5,17 @@
 require_once __DIR__ . '/../config/config.php';
 requireAuth();
 
-$action = $_GET['action'] ?? ($_POST['action'] ?? '');
+// Read JSON body for POST requests
+$jsonBody = [];
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $raw = file_get_contents('php://input');
+    if ($raw !== false && $raw !== '') {
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) $jsonBody = $decoded;
+    }
+}
+
+$action = $_GET['action'] ?? ($_POST['action'] ?? ($jsonBody['action'] ?? ''));
 
 // ── GET: fetch a template ─────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'get_template') {
@@ -20,12 +30,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'get_template') {
 
 // ── POST: send email ──────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'send') {
-    $body       = json_decode(file_get_contents('php://input'), true) ?? [];
-    $contactId  = intval($body['contact_id'] ?? 0);
-    $templateId = intval($body['template_id'] ?? 0);
-    $toEmail    = filter_var(trim($body['to'] ?? ''), FILTER_VALIDATE_EMAIL);
-    $subject    = trim($body['subject'] ?? '');
-    $htmlBody   = trim($body['html'] ?? '');
+    $contactId  = intval($jsonBody['contact_id'] ?? 0);
+    $templateId = intval($jsonBody['template_id'] ?? 0);
+    $toEmail    = filter_var(trim($jsonBody['to'] ?? ''), FILTER_VALIDATE_EMAIL);
+    $subject    = trim($jsonBody['subject'] ?? '');
+    $htmlBody   = trim($jsonBody['html'] ?? '');
 
     if (!$toEmail) {
         jsonResponse(['success' => false, 'error' => 'Invalid or missing email address'], 400);
@@ -62,8 +71,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'send') {
         }
     }
 
-    if (!getSetting('nexomailer_enabled', '0') === '1') {
+    if (getSetting('nexomailer_enabled', '0') !== '1') {
         jsonResponse(['success' => false, 'error' => 'NexoMailer is not enabled. Enable it in Settings.'], 400);
+    }
+    if (getSetting('nexomailer_api_key', '') === '') {
+        jsonResponse(['success' => false, 'error' => 'NexoMailer API key is not configured.'], 400);
     }
 
     $ok = sendNexoEmail($toEmail, $subject, $htmlBody);
@@ -75,4 +87,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'send') {
     }
 }
 
-jsonResponse(['error' => 'Invalid request'], 400);
+jsonResponse(['error' => 'Invalid request', 'received_action' => $action, 'method' => $_SERVER['REQUEST_METHOD']], 400);

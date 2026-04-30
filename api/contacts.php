@@ -117,7 +117,6 @@ if ($method === 'POST') {
         LEFT JOIN call_statuses cs ON c.status_id = cs.id
         $whereClause
         ORDER BY c.created_at DESC
-        LIMIT 100
     ", $params);
 
     jsonResponse(['success' => true, 'data' => $contacts]);
