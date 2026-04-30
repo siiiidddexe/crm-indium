@@ -11,7 +11,10 @@ require_once __DIR__ . '/database.php';
 
 // Application settings
 define('APP_NAME', 'Obsiguard CRM');
-define('APP_URL', '/crm');
+
+// APP_URL: '/crm' on MAMP local, '' (empty) on production
+$_host = $_SERVER['HTTP_HOST'] ?? '';
+define('APP_URL', (str_contains($_host, 'localhost') || str_contains($_host, '127.0.0.1') || str_contains($_host, '.local')) ? '/crm' : '');
 
 /**
  * Check if user is logged in
