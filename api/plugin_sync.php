@@ -73,18 +73,32 @@ function syncGoogleSheets(array $plugin, array $config, array $mappings): array
         return [0, ['Spreadsheet ID is not configured']];
     }
 
-    $url = "https://sheets.googleapis.com/v4/spreadsheets/{$spreadsheetId}/values/" . urlencode($range);
+    // Extract sheet name for CSV fallback
+    $sheetName = 'Sheet1';
+    if (preg_match('/^([^!]+)!/', $range, $snm)) {
+        $sheetName = $snm[1];
+    }
+
     if ($apiKey) {
-        $url .= '?key=' . urlencode($apiKey);
+        // Use Sheets API v4 with key
+        $url      = "https://sheets.googleapis.com/v4/spreadsheets/{$spreadsheetId}/values/" . urlencode($range) . '?key=' . urlencode($apiKey);
+        $response = httpGet($url);
+        if (!$response['ok']) {
+            return [0, ['Google Sheets API error: ' . $response['body']]];
+        }
+        $body   = json_decode($response['body'], true);
+        $values = $body['values'] ?? [];
+    } else {
+        // Fall back to public CSV export (works for "Anyone with link" sheets without an API key)
+        $csvUrl   = "https://docs.google.com/spreadsheets/d/{$spreadsheetId}/export?format=csv&sheet=" . urlencode($sheetName);
+        $response = httpGet($csvUrl);
+        if (!$response['ok'] || empty($response['body'])) {
+            return [0, ['Could not fetch sheet. Make sure it is shared publicly ("Anyone with the link → Viewer") or provide a Google API Key.']];
+        }
+        // Parse CSV into $values array
+        $lines  = explode("\n", str_replace("\r\n", "\n", trim($response['body'])));
+        $values = array_map('str_getcsv', $lines);
     }
-
-    $response = httpGet($url);
-    if (!$response['ok']) {
-        return [0, ['Google Sheets API error: ' . $response['body']]];
-    }
-
-    $body   = json_decode($response['body'], true);
-    $values = $body['values'] ?? [];
 
     if (count($values) < 2) {
         return [0, ['Sheet has no data rows (first row is treated as headers)']];
